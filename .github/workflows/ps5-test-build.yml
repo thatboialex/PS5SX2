@@ -2,6 +2,14 @@ name: PS5 test build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - fix/ps5sx2-bios-games-cheats-discovery
+    paths:
+      - "ps5/**"
+      - "pcsx2/**"
+      - "3rdparty/**"
+      - ".github/workflows/ps5-test-build.yml"
   pull_request:
     branches:
       - main
