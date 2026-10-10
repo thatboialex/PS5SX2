@@ -1,7 +1,6 @@
-// PS5 port frontend, PC test (2026-10-08, AI-assisted; testers: ".bin images don't load"): the shelf lists raw CD images
-// (.bin, .img) and reads their serials whatever their sector layout (2352 bytes with the data 24 or 16 in, 2448 with
-// subcode, plain 2048), and leaves out a .bin under 16 MB (a BIOS dump, a memory card) and one with no ISO 9660 volume
-// (the audio tracks of a .cue/.bin set).
+// PS5 port frontend, PC test (2026-10-08, AI-assisted): the shelf lists raw CD images, handles nested game folders,
+// and reads serials from raw sectors (2352 bytes with the data 24 or 16 in, 2448 with subcode, plain 2048). It leaves out
+// a .bin under 16 MB (a BIOS dump, a memory card) and one with no ISO 9660 volume (a .cue/.bin audio track).
 //   ps5/frontend/host/test-rawbin.sh
 // Copyright (C) 2026 swordpdf
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -53,8 +52,9 @@ int main(int argc, char** argv)
 	WriteRaw(dir + "/Sub 2448 (USA).bin", Iso("SLUS_210.05", big), 2448, 24);
 	WriteRaw(dir + "/Small (USA).bin", Iso("SLUS_200.01", 64), 2352, 24);
 	std::filesystem::create_directories(dir + "/nested/console/title");
+	const std::vector<uint8_t> nested_iso = Iso("SLUS_212.34", big);
 	std::ofstream(dir + "/nested/console/title/Nested Game.iso", std::ios::binary)
-		.write(reinterpret_cast<const char*>(Iso("SLUS_212.34", big).data()), static_cast<std::streamsize>(big * 2048));
+		.write(reinterpret_cast<const char*>(nested_iso.data()), static_cast<std::streamsize>(nested_iso.size()));
 	{
 		std::vector<uint8_t> audio((20u << 20), 0);
 		for (size_t i = 0; i < audio.size(); i++) audio[i] = static_cast<uint8_t>(i * 2654435761u >> 13);
