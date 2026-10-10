@@ -32,10 +32,10 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake curl flex bison git libclang-23-dev libclang-cpp23-dev libdrm-dev libelf-dev libexpat1-dev libx11-dev libx11-xcb-dev libxdamage-dev libxext-dev libxfixes-dev libxshmfence-dev libxxf86vm-dev libzstd-dev ninja-build pkg-config python3-dev python3-mako python3-pip python3-setuptools python3-venv rsync unzip wget zlib1g-dev
+          sudo apt-get install -y build-essential cmake curl flex bison git libdrm-dev libelf-dev libexpat1-dev libx11-dev libx11-xcb-dev libxdamage-dev libxext-dev libxfixes-dev libxshmfence-dev libxxf86vm-dev libzstd-dev ninja-build pkg-config python3-dev python3-mako python3-pip python3-setuptools python3-venv rsync unzip wget zlib1g-dev
           curl -fsSL https://apt.llvm.org/llvm.sh -o /tmp/llvm.sh
           sudo bash /tmp/llvm.sh 23
-          sudo apt-get install -y clang-23 lld-23 llvm-23 llvm-23-dev llvm-23-tools libclang-rt-23-dev
+          sudo apt-get install -y clang-23 lld-23 llvm-23 llvm-23-dev llvm-23-tools libclang-23-dev libclang-cpp23-dev libclang-rt-23-dev libclc-23-dev libspirv-tools-dev spirv-headers
           echo "CC=clang-23" >> "$GITHUB_ENV"
           echo "CXX=clang++-23" >> "$GITHUB_ENV"
           echo "LLD=ld.lld-23" >> "$GITHUB_ENV"
