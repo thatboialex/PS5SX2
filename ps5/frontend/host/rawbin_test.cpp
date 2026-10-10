@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
+#include <filesystem>
 static int fails = 0;
 static void Check(bool ok, const std::string& w) { std::printf("%s  %s\n", ok ? "PASS" : "FAIL", w.c_str()); fails += !ok; }
 // A 2048-byte ISO image (as settings_test.cpp), then written as raw sectors of `block` bytes with the data `offset` in.
@@ -51,6 +52,9 @@ int main(int argc, char** argv)
 	WriteRaw(dir + "/Plain (Japan).img", Iso("SLPS_251.98", big), 2048, 0);
 	WriteRaw(dir + "/Sub 2448 (USA).bin", Iso("SLUS_210.05", big), 2448, 24);
 	WriteRaw(dir + "/Small (USA).bin", Iso("SLUS_200.01", 64), 2352, 24);
+	std::filesystem::create_directories(dir + "/nested/console/title");
+	std::ofstream(dir + "/nested/console/title/Nested Game.iso", std::ios::binary)
+		.write(reinterpret_cast<const char*>(Iso("SLUS_212.34", big).data()), static_cast<std::streamsize>(big * 2048));
 	{
 		std::vector<uint8_t> audio((20u << 20), 0);
 		for (size_t i = 0; i < audio.size(); i++) audio[i] = static_cast<uint8_t>(i * 2654435761u >> 13);
@@ -70,6 +74,7 @@ int main(int argc, char** argv)
 	Check(seen.find("Raw Mode1 (Europe).bin=SLES-12345") != std::string::npos, "a mode 1 raw .bin (data 16 in)");
 	Check(seen.find("Plain (Japan).img=SLPS-25198") != std::string::npos, "a plain .img");
 	Check(seen.find("Sub 2448 (USA).bin=SLUS-21005") != std::string::npos, "a .bin with subcode (2448)");
+	Check(seen.find("Nested Game.iso=SLUS-21234") != std::string::npos, "an image three folders below the selected library root");
 	Check(seen.find("Small") == std::string::npos, "a .bin under 16 MB isn't listed");
 	Check(seen.find("Track 2") == std::string::npos, "an audio track isn't listed");
 	Check(seen.find("Homebrew.elf=;") != std::string::npos, "an ELF is listed, without a serial");
