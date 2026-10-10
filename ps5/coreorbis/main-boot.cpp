@@ -2846,6 +2846,15 @@ int main()
   EmuFolders::MemoryCards = OrbisDir("memcards");
   EmuFolders::Snapshots = OrbisDir("snapshots");
   EmuFolders::Savestates = OrbisDir("savestates");
+  // These folders must exist before OrbisDir() resolves them. Otherwise it deliberately falls back
+  // to /data/PCSX2 for older installs, and new cheat and patch downloads share one directory:
+  // PCSX2 then sees each downloaded pnach as both a patch and a cheat.
+  for (const char* sub : {"cheats", "patches"})
+  {
+    const std::string path = std::string("/data/PCSX2/") + sub;
+    if (mkdir(path.c_str(), 0777) != 0 && errno != EEXIST)
+      printf("[boot] can't make %s (errno %d)\n", path.c_str(), errno);
+  }
   EmuFolders::Cheats = OrbisDir("cheats");
   EmuFolders::Patches = OrbisDir("patches");
   EmuFolders::Cache = OrbisDir("cache");
