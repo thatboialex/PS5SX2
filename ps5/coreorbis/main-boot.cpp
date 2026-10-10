@@ -2000,6 +2000,11 @@ static bool orbis_is_bios(const std::string& path)
 static std::vector<std::string> orbis_bios_places()
 {
   std::vector<std::string> dirs = {EmuFolders::Bios};
+  // A custom BIOS folder shouldn't hide archives in the normal location. PCSX2 checks the
+  // default folder for loose files, so the archive extractor must check it too.
+  const std::string default_bios = "/data/PCSX2/bios";
+  if (EmuFolders::Bios != default_bios)
+    dirs.push_back(default_bios);
   if (EmuFolders::Bios != "/data/PCSX2")
     dirs.push_back("/data/PCSX2");
   for (int i = 0; i < 10; i++)
