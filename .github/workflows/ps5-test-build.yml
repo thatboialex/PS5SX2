@@ -72,13 +72,13 @@ jobs:
             git -C "$repo" fetch --quiet --depth=1 origin "$revision"
             git -C "$repo" checkout --quiet --detach FETCH_HEAD
           }
-          fetch_commit deps/PS5_Vulkan https://github.com/mihawk-99/PS5_Vulkan.git 3f3ee69
+          fetch_commit deps/PS5_Vulkan https://github.com/mihawk-99/PS5_Vulkan.git 3f3ee69607013b345d2baa6d6a37c86745649a08
           fetch_commit deps/PS5_PayloadSDK https://github.com/mihawk-99/PS5_PayloadSDK.git 95c08f27386fc698f6bbe21dde3030140a41d10b
           fetch_commit deps/PS5_Mesa https://github.com/mihawk-99/PS5_Mesa.git 0b2d6d1a61d9bbf89cf8beb88a696144f67c61f8
-          fetch_commit deps/ryml https://github.com/biojppm/rapidyaml.git 0cd25a1
+          fetch_commit deps/ryml https://github.com/biojppm/rapidyaml.git 0cd25a10e0b83e4e1c11ad74048f4817f45b9763
           git -C deps/ryml submodule update --init --depth 1
-          fetch_commit deps/glslang https://github.com/KhronosGroup/glslang.git 275822a
-          fetch_commit deps/shaderc https://github.com/google/shaderc.git v2026.2
+          fetch_commit deps/glslang https://github.com/KhronosGroup/glslang.git 275822a6261ee689aadb1da5f09a0ec2f058685c
+          fetch_commit deps/shaderc https://github.com/google/shaderc.git d5f08ae5c5a9a45165578445cbd0f9adf0223448
           fetch_commit deps/AGC-symbols https://github.com/DNNDHH/PS5-3.20_Libs.git b2a77c09cd71c01f34c790cfbe98c751a13262ad
 
       - name: Build the pinned payload SDK and RADV driver
