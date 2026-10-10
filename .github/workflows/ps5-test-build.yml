@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake curl flex bison git             libclang-23-dev libclang-cpp23-dev libdrm-dev libelf-dev libexpat1-dev             libx11-dev libx11-xcb-dev libxdamage-dev libxext-dev libxfixes-dev             libxshmfence-dev libxxf86vm-dev libzstd-dev ninja-build pkg-config             python3-dev python3-mako python3-pip python3-setuptools python3-venv             rsync unzip wget zlib1g-dev
+          sudo apt-get install -y build-essential cmake curl flex bison git libclang-23-dev libclang-cpp23-dev libdrm-dev libelf-dev libexpat1-dev libx11-dev libx11-xcb-dev libxdamage-dev libxext-dev libxfixes-dev libxshmfence-dev libxxf86vm-dev libzstd-dev ninja-build pkg-config python3-dev python3-mako python3-pip python3-setuptools python3-venv rsync unzip wget zlib1g-dev
           curl -fsSL https://apt.llvm.org/llvm.sh -o /tmp/llvm.sh
           sudo bash /tmp/llvm.sh 23
           sudo apt-get install -y clang-23 lld-23 llvm-23 llvm-23-dev llvm-23-tools libclang-rt-23-dev
@@ -41,11 +41,16 @@ jobs:
           echo "LLD=ld.lld-23" >> "$GITHUB_ENV"
           echo "NM=llvm-nm-23" >> "$GITHUB_ENV"
           echo "HOST_CXX=clang++-23" >> "$GITHUB_ENV"
-          echo "PS5_RADV_BUILTINS=$(clang++-23 -print-resource-dir)/lib/linux/libclang_rt.builtins-x86_64.a" >> "$GITHUB_ENV"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Install Meson and Ninja
-        uses: astral-sh/setup-uv@v5
-      - run: uv tool install meson ninja
+        shell: bash
+        run: |
+          uv tool install meson
+          uv tool install ninja
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Fetch pinned public PS5 build dependencies
         shell: bash
@@ -66,6 +71,7 @@ jobs:
           git -C deps/ryml submodule update --init --depth 1
           fetch_commit deps/glslang https://github.com/KhronosGroup/glslang.git 275822a
           fetch_commit deps/shaderc https://github.com/google/shaderc.git v2026.2
+          fetch_commit deps/AGC-symbols https://github.com/DNNDHH/PS5-3.20_Libs.git b2a77c09cd71c01f34c790cfbe98c751a13262ad
 
       - name: Build the pinned payload SDK and RADV driver
         shell: bash
@@ -77,16 +83,42 @@ jobs:
           set -euo pipefail
           cd deps/PS5_Vulkan
           bash tools/setup-native-dependencies.sh
-          MESON="$HOME/.local/bin/meson"             PATH="$HOME/.local/bin:$PATH"             bash tools/build-radv.sh release
+          MESON="$HOME/.local/bin/meson" PATH="$HOME/.local/bin:$PATH" bash tools/build-radv.sh release
 
-      - name: Prepare PS5SX2 SDK and glslang
+      - name: Prepare PS5SX2 SDK, AGC import metadata, and glslang
         shell: bash
         env:
           PS5SX2_DEPS: ${{ github.workspace }}/deps
         run: |
           set -euo pipefail
           cp -a deps/PS5_Vulkan/.deps/native/ps5-payload-sdk deps/sdk285
-          cmake -S deps/glslang -B deps/glslang/build-ps5             -DCMAKE_TOOLCHAIN_FILE="$PS5SX2_DEPS/sdk285/toolchain/prospero.cmake"             -DCMAKE_BUILD_TYPE=Release -DENABLE_OPT=OFF -DENABLE_HLSL=OFF             -DENABLE_GLSLANG_BINARIES=OFF -DGLSLANG_TESTS=OFF
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import subprocess
+          import tempfile
+
+          sdk = pathlib.Path("deps/sdk285")
+          symbols = pathlib.Path("deps/AGC-symbols")
+          for library in ("libSceAgc", "libSceAgcDriver"):
+              source = (symbols / f"{library}.c").read_text()
+              entries = re.findall(r"\.type\s+([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(@function|@object)\\n", source)
+              if not entries:
+                  raise SystemExit(f"No exported symbols parsed from {library}.c")
+              assembly = [".text"]
+              for name, kind in sorted(set(entries)):
+                  assembly.extend([f".globl {name}", f".type {name},{kind}", f"{name}:"])
+                  assembly.extend(["ret"] if kind == "@function" else [".zero 8"])
+              with tempfile.TemporaryDirectory() as temp:
+                  asm = pathlib.Path(temp) / f"{library}.S"
+                  obj = pathlib.Path(temp) / f"{library}.o"
+                  asm.write_text("\n".join(assembly) + "\n")
+                  subprocess.run(["clang-23", "--target=x86_64-sie-ps5", "-fPIC", "-c", str(asm), "-o", str(obj)], check=True)
+                  output = sdk / "target/lib" / f"{library}.so"
+                  subprocess.run(["ld.lld-23", "-m", "elf_x86_64", "-shared", "-soname", f"{library}.sprx", "-o", str(output), str(obj)], check=True)
+              print(f"Wrote linker metadata for {library}: {len(entries)} exports")
+          PY
+          cmake -S deps/glslang -B deps/glslang/build-ps5 -DCMAKE_TOOLCHAIN_FILE="$PS5SX2_DEPS/sdk285/toolchain/prospero.cmake" -DCMAKE_BUILD_TYPE=Release -DENABLE_OPT=OFF -DENABLE_HLSL=OFF -DENABLE_GLSLANG_BINARIES=OFF -DGLSLANG_TESTS=OFF
           cmake --build deps/glslang/build-ps5 --parallel 2
 
       - name: Build PS5SX2
@@ -98,7 +130,6 @@ jobs:
           PS5_RADV_ARCHIVE: ${{ github.workspace }}/deps/PS5_Vulkan/.deps/native/radv-release/lib/libvulkan_radeon.ps5.a
           PS5_RADV_PLATFORM: ${{ github.workspace }}/deps/PS5_Vulkan/.deps/native/ps5-payload-sdk/target/lib/libps5platform.a
           PS5_RADV_REV: 0b2d6d1a61d9
-          PS5_RADV_BUILTINS: ${{ env.PS5_RADV_BUILTINS }}
           LLD: ld.lld-23
           NM: llvm-nm-23
           HOST_CXX: clang++-23
@@ -107,6 +138,8 @@ jobs:
           ORBIS_TEST_BUILD: "1"
         run: |
           set -euo pipefail
+          export PS5_RADV_BUILTINS="$(clang++-23 -print-resource-dir)/lib/linux/libclang_rt.builtins-x86_64.a"
+          test -f "$PS5_RADV_BUILTINS"
           make -C ps5/coreorbis -f Makefile.vk -j2
           bash ps5/coreorbis/link-radv.sh
           test -s ps5/build-radv/app/eboot.bin
