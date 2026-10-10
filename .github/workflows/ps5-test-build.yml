@@ -110,7 +110,7 @@ jobs:
           symbols = pathlib.Path("deps/AGC-symbols")
           for library in ("libSceAgc", "libSceAgcDriver"):
               source = (symbols / f"{library}.c").read_text()
-              entries = re.findall(r"\.type\s+([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(@function|@object)\\n", source)
+              entries = re.findall(r"\.type\s+([A-Za-z_][A-Za-z0-9_]*)\s*,?\s*(@function|@object)\\n", source)
               if not entries:
                   raise SystemExit(f"No exported symbols parsed from {library}.c")
               assembly = [".text"]
