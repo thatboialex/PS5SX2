@@ -188,6 +188,15 @@ int main(int argc, char** argv)
 	File(s_root + "/k/usb0/scph39001.NVM", 1024);
 	CHECK(Has(fe::DescribeBiosProblem(s_root + "/k/PCSX2/bios", s_root + "/k/PCSX2", {s_root + "/k/usb0"}, IsBios), "Only parts of a PS2 BIOS"));
 
+	// A custom BIOS folder is empty, but a BIOS archive is in the standard bios folder. The caller
+	// must include both locations so the archive is extracted where PCSX2 will then find it.
+	const std::string custom_bios = Dir("l/custom-bios");
+	const std::string default_bios = Dir("l/PCSX2/bios");
+	Zip(default_bios + "/bios-pack.zip", {{"SCPH-70012.bin", Bytes(MB4, true)}});
+	std::set<std::string> tried_l;
+	const std::string fallback = fe::ExtractBiosFromArchives({custom_bios, default_bios}, custom_bios, IsBios, &tried_l, &from);
+	CHECK(fallback == custom_bios + "/SCPH-70012.bin");
+
 	std::printf("%s: %d of %d checks passed (the BIOS before the shelf)\n", s_fail ? "FAIL" : "PASS", s_checks - s_fail, s_checks);
 	return s_fail ? 1 : 0;
 }

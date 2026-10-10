@@ -2000,6 +2000,11 @@ static bool orbis_is_bios(const std::string& path)
 static std::vector<std::string> orbis_bios_places()
 {
   std::vector<std::string> dirs = {EmuFolders::Bios};
+  // A custom BIOS folder shouldn't hide archives in the normal location. PCSX2 checks the
+  // default folder for loose files, so the archive extractor must check it too.
+  const std::string default_bios = "/data/PCSX2/bios";
+  if (EmuFolders::Bios != default_bios)
+    dirs.push_back(default_bios);
   if (EmuFolders::Bios != "/data/PCSX2")
     dirs.push_back("/data/PCSX2");
   for (int i = 0; i < 10; i++)
@@ -2846,6 +2851,15 @@ int main()
   EmuFolders::MemoryCards = OrbisDir("memcards");
   EmuFolders::Snapshots = OrbisDir("snapshots");
   EmuFolders::Savestates = OrbisDir("savestates");
+  // These folders must exist before OrbisDir() resolves them. Otherwise it deliberately falls back
+  // to /data/PCSX2 for older installs, and new cheat and patch downloads share one directory:
+  // PCSX2 then sees each downloaded pnach as both a patch and a cheat.
+  for (const char* sub : {"cheats", "patches"})
+  {
+    const std::string path = std::string("/data/PCSX2/") + sub;
+    if (mkdir(path.c_str(), 0777) != 0 && errno != EEXIST)
+      printf("[boot] can't make %s (errno %d)\n", path.c_str(), errno);
+  }
   EmuFolders::Cheats = OrbisDir("cheats");
   EmuFolders::Patches = OrbisDir("patches");
   EmuFolders::Cache = OrbisDir("cache");

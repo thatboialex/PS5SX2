@@ -1076,11 +1076,25 @@ std::vector<GameInfo> ScanGames(const std::vector<std::string>& dirs)
 	std::vector<GameInfo> games;
 	for (const std::string& dir : dirs)
 	{
-		std::vector<std::string> subdirs;
-		ScanDir(dir, games, &subdirs);
-		std::sort(subdirs.begin(), subdirs.end());
-		for (const std::string& sub : subdirs)
-			ScanDir(dir + "/" + sub, games, nullptr);
+		// Game libraries are often nested as games/console/title/disc.iso. Keep the walk bounded:
+		// at most three folder levels and 256 directories per root, even for a whole backup drive.
+		std::vector<std::pair<std::string, int>> todo = {{dir, 0}};
+		for (size_t i = 0; i < todo.size() && i < 256; i++)
+		{
+			const std::string& current = todo[i].first;
+			const int depth = todo[i].second;
+			std::vector<std::string> subdirs;
+			ScanDir(current, games, depth < 3 ? &subdirs : nullptr);
+			if (depth >= 3)
+				continue;
+			std::sort(subdirs.begin(), subdirs.end());
+			for (const std::string& sub : subdirs)
+			{
+				if (todo.size() >= 256)
+					break;
+				todo.emplace_back(current + "/" + sub, depth + 1);
+			}
+		}
 	}
 	SortGames(games);
 	return games;
